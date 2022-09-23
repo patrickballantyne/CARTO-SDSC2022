@@ -1,0 +1,119 @@
+---
+title: "Workbook"
+author: "Patrick Ballantyne"
+date: '2022-09-23'
+output: html_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(include = FALSE) 
+```
+
+## Libraries
+
+Libraries are an essential part of the R workflow, giving you all the necessary tools to complete the analysis. Different people use different libraries for certain aspects of analysis, but these are my favourites:
+
+```{r}
+library(tidyverse)
+library(sf)
+library(tidycensus)
+library(tmap)
+tmap_mode("view")
+```
+
+## Part 1) Explore the data!
+
+Today we will be working with three main types of data:
+
+- Store data, supplied by SafeGraph
+- Geodemographic classification, as from paper
+- Population data, from the US Census. 
+
+### Store data - SafeGraph places
+
+```{r }
+places <- st_read("Data/GA_MSA_pts.gpkg", quiet = TRUE)
+```
+
+Look at the attributes:
+
+```{r}
+glimpse(places)
+```
+
+Let's take a look at the distribution of grocery stores:
+
+```{r}
+grocery <- places %>%
+  filter(top_category == "Grocery Stores") %>%
+  mutate(brands = case_when(brands == "" ~ "Unclassified",
+                              TRUE ~ brands))
+```
+
+```{r}
+tm_shape(grocery) +
+  tm_dots(col = "brands", size = 0.05)
+```
+
+Lots of 'independent' grocery stores, but also large numbers of big brands such as LIDL, Circle K and Whole Foods. 
+
+### US GEODEMOGRAPHIC CLASSIFICATION 
+
+```{r}
+geodemo <- st_read("Data/GA_GD.gpkg", quiet = TRUE)
+```
+
+```{r}
+glimpse(geodemo)
+```
+
+The TractGroup column is the one we are interested in; every census tract in the US is assigned to one of 10 groups, based on the geodemographic characteristics of the area in question. 
+
+```{r}
+tm_shape(geodemo) +
+  tm_fill(col = "TractGroup", alpha = 0.5) +
+  tm_borders(col = "black", lwd = 0.5)
+```
+
+### POPULATION DATA
+
+We are going to be using a fantastic package called 'Tidycensus' which is used to directly query data from the US Census Bureau API.
+
+```{r}
+census_api_key("e0f3cdfa0e1e13ab3a4d9dc32c67984d0be5523b")
+```
+
+```{r message= FALSE}
+pop <- get_decennial(geography = "Tract", variables = "P001001",
+                     state = "GA", year = 2010)
+```
+
+```{r}
+glimpse(pop)
+```
+
+Here, the value column is the one we are interested in; total population in each census tract. 
+
+```{r}
+gd_pop <- merge(geodemo, pop, by = "GEOID")
+```
+
+```{r}
+glimpse(gd_pop)
+```
+
+Now that we have the population data converted to a spatial form, let's take a look at the population distribution of Atlanta MSA:
+
+```{r}
+tm_shape(gd_pop) +
+  tm_fill(col = "value", alpha = 0.5, style = "jenks") +
+  tm_borders(col = "black", lwd = 0.5)
+```
+
+## PART 2 - CATCHMENT ANALYSIS
+
+
+
+## PART 3 - CATCHMENT PROFILING
+
+
