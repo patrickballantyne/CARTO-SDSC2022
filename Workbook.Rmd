@@ -1,19 +1,26 @@
 ---
-title: "Workbook"
+title: "Retail and Geodemographics: A Spatial Data Science Approach"
 author: "Patrick Ballantyne"
 date: '2022-09-23'
-output: html_document
+output: 
+  prettydoc::html_pretty:
+  theme: 
+  highlight: github
 ---
 
 ## Libraries
 
 Libraries are an essential part of the R workflow, giving you all the necessary tools to complete the analysis. Different people use different libraries for certain aspects of analysis, but these are my favourites:
 
-```{r}
+```{r message = FALSE, warning = FALSE}
 library(tidyverse)
 library(sf)
 library(tidycensus)
 library(tmap)
+```
+
+```{r include=FALSE}
+library(prettydoc)
 tmap_mode("plot")
 ```
 
@@ -27,7 +34,7 @@ Today we will be working with three main types of data:
 
 ### Store data - SafeGraph places
 
-```{r }
+```{r message = FALSE }
 places <- st_read("Data/places.gpkg", quiet = TRUE)
 ```
 
@@ -46,16 +53,19 @@ grocery <- places %>%
 
 ```{r}
 tm_shape(grocery) +
-  tm_dots(col = "brands", size = 0.05)
+  tm_dots(col = "brands", size = 0.05) +
+  tm_layout(legend.outside = TRUE)
 ```
 
 Lots of 'Independent' grocery stores, but also large numbers of big brands such as LIDL, Circle K and Whole Foods. 
 
-### US GEODEMOGRAPHIC CLASSIFICATION 
+### Geodemographics - Spielman and Singleton (2015)
 
 ```{r}
 geodemo <- st_read("Data/geodemographic.gpkg", quiet = TRUE)
 ```
+
+Look at the attributes:
 
 ```{r}
 glimpse(geodemo)
@@ -66,10 +76,11 @@ The 'TractGroup' column is the one we are interested in; every census tract in t
 ```{r}
 tm_shape(geodemo) +
   tm_fill(col = "TractGroup", alpha = 0.5) +
-  tm_borders(col = "black", lwd = 0.5)
+  tm_borders(col = "black", lwd = 0.25) +
+  tm_layout(legend.outside = TRUE)
 ```
 
-### POPULATION DATA
+### Population - US Census (via Tidycensus)
 
 We are going to be using a fantastic package called 'Tidycensus' which is used to directly query data from the US Census Bureau API.
 
@@ -101,10 +112,11 @@ Now that we have the population data converted to a spatial form, let's take a l
 ```{r}
 tm_shape(gd_pop) +
   tm_fill(col = "value", alpha = 0.5, style = "jenks") +
-  tm_borders(col = "black", lwd = 0.5)
+  tm_borders(col = "black", lwd = 0.25) +
+  tm_layout(legend.outside = TRUE)
 ```
 
-## PART 2 - CATCHMENT ANALYSIS
+## Part 2) Store Catchments
 
 Ok, now that we are familiar with the three main datasets, we can actually get to some 'spatial data science'. In this workshop we are going to be looking at the geodemographic profiles of two very different retailers:
 
@@ -124,24 +136,23 @@ Let's visualise these:
 ```{r}
 q1 <- tm_shape(wholefoods) +
   tm_dots(col = "black", size = 0.1) +
-  tm_text("brands") +
+  tm_text("brands", size = 0.5) +
   tm_shape(ollies) +
   tm_dots(col = "black", size = 0.1) +
-  tm_text("brands")
+  tm_text("brands", size = 0.5)
 
 q1
 ```
-
 And what does this look like with the geodemographic classification underneath:
 
 ```{r}
 tm_shape(gd_pop) +
-  tm_fill(col = "TractGroup", alpha = 0.2) +
+  tm_fill(col = "TractGroup", alpha = 0.5) +
   tm_borders(col = "black", lwd = 0.1) +
+  tm_layout(legend.outside = TRUE) +
   q1
 ```
-
-So there are some pretty obvious locational differences between them. But how can we assess this - catchments.
+So there are some pretty obvious locational differences between them. But how can we assess this - catchments. Store catchments help us to better understand the characteristics of consumers that are likely to use these stores.
 
 Let's build a 1km buffer for whole foods stores:
 
@@ -154,7 +165,7 @@ What do these look like:
 ```{r}
 q2 <- tm_shape(wholefoods) +
   tm_dots(col = "black", size = 0.1) +
-  tm_text("brands") + 
+  tm_text("brands", size = 0.5) + 
   tm_shape(wholefoods_catch) +
   tm_polygons(col = "red", alpha = 0.3)
 ```
@@ -165,6 +176,7 @@ And with the geodemographic:
 tm_shape(gd_pop) +
   tm_fill(col = "TractGroup", alpha = 0.2) +
   tm_borders(col = "black", lwd = 0.1) +
+  tm_layout(legend.outside = TRUE) +
   q2
 ```
 
@@ -179,21 +191,26 @@ What do these look like:
 ```{r}
 q3 <- tm_shape(ollies) +
   tm_dots(col = "black", size = 0.1) +
-  tm_text("brands") + 
+  tm_text("brands", size = 0.5) + 
   tm_shape(ollies_catch) +
   tm_polygons(col = "red", alpha = 0.3)
+q3
 ```
 
 And with the geodemographic: 
 
 ```{r}
 tm_shape(gd_pop) +
-  tm_fill(col = "TractGroup", alpha = 0.2) +
+  tm_fill(col = "TractGroup", alpha = 0.5) +
   tm_borders(col = "black", lwd = 0.1) +
+  tm_layout(legend.outside = T) +
   q3
 ```
+So there are some obvious differences between the general location and geodemographic profile of Whole Foods vs Ollie's Bargain Outlet. So, how do we quantify this: catchment profiling. 
 
-## PART 3 - CATCHMENT PROFILING
+## Part 3) Catchment Profiling
+
+### 3.1. Catchment Geodemographics
 
 Ok, so we have constructed catchment for each of these stores, enabling us to identify people living nearby that are more likely to shop there, we can profile exactly who these people are.
 
@@ -218,7 +235,6 @@ wholefood_profile <- wholefoods_gd %>%
   select(-c(geom)) %>%
   group_by(location_name, placekey) %>%
   summarise(catch_pop = sum(value))
-
 ```
 
 Then get the total population by geodemographic group in each catchment:
@@ -257,7 +273,55 @@ wholefood_profile_final %>%
   geom_bar(stat = "identity") +
   theme(axis.text.x = element_blank())
 ```
-Calculating an exposure score (integrate z-scores here)...
+Let's repeat those steps for Ollie's Bargain Outlet:
+
+
+```{r}
+ollies_gd <- st_join(ollies_catch, gd_pop)
+ollies_profile <- ollies_gd %>%
+  as.data.frame() %>%
+  select(-c(geom)) %>%
+  group_by(location_name, placekey) %>%
+  summarise(catch_pop = sum(value))
+ollies_gd_profile <- ollies_gd %>%
+  as.data.frame() %>%
+  select(-c(geom)) %>%
+  group_by(location_name, placekey, TractGroup) %>%
+  summarise(catch_gd_pop = sum(value))
+ollies_profile <- merge(ollies_profile, ollies_gd_profile, by = c("location_name", "placekey"), all.x = TRUE)
+ollies_profile_final <- ollies_profile %>%
+  mutate(gd_prop = (catch_gd_pop / catch_pop) * 100) %>%
+  select(location_name, placekey, TractGroup, gd_prop)
+```
+
+And visualise the output:
+
+```{r}
+ollies_profile_final %>%
+  complete(TractGroup, location_name, placekey, fill=list(gd_prop=0)) %>%
+  ggplot(aes(fill = TractGroup, x = placekey, y = gd_prop)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_blank())
+```
+### 3.2. Catchment spending power
+
+Whilst it is useful to visualise differences in geodemographic profiles of store catchments, it is perhaps more useful to provide an empirical measure that quantifies these differences.
+
+Based on the methodology applied in Singleton et al. (2016), we calculate a *snazzy name* score for each store catchment, which is based on differences in income between the different groups.
+
+Let's read in a file containing some information about the overall wealth of these different groups:
+
+```{r}
+zscores <- read.csv("Data/z-scores.csv")
+```
+
+```{r}
+zscores
+```
+
+So for each geodemographic group, we have prepared a summary of the overall wealth taken straight from the pen portrait in Spielman and Singleton (2015). Using these descriptions, we have assigned an arbitrary z-score (or weight) which can be used when calculating a score to summarise the income of each store's catchment.
+
+
 
 ## Part 4) Optional Extra: Drive-Time Catchments 
 

@@ -1,0 +1,10 @@
+TractGroup,Wealth,z-score
+A: Hispanic and Kids,Low incomes and public assistance,-0.5
+B: Wealthy Nuclear Families,"High incomes, few households less than $50k",1
+"C: Middle Income, Single Family Homes","Retirement income, low to middle household income",0.5
+E: Wealthy Urbanites,"Wealthy, many households over $200k per year",1
+F: Low Income and Diverse,"Incomes below $40k common, few households over $100k",-0.5
+"G: Old, Wealthy White ","Retirement income, many households $150k+",0.5
+"H: Low Income, Minority Mix",Low incomes and public assistance,-0.5
+I: African American Adversity ,"Very poor, public assistance, incomes over $100k rare",-1
+"J: Residential Institutions, Young People",Low income,-0.5
