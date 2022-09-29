@@ -21,7 +21,7 @@ library(tmap)
 
 ```{r include=FALSE}
 library(prettydoc)
-tmap_mode("plot")
+tmap_mode("view")
 ```
 
 ## Part 1) Explore the data!
@@ -168,13 +168,14 @@ q2 <- tm_shape(wholefoods) +
   tm_text("brands", size = 0.5) + 
   tm_shape(wholefoods_catch) +
   tm_polygons(col = "red", alpha = 0.3)
+q2
 ```
 
 And with the geodemographic: 
 
 ```{r}
 tm_shape(gd_pop) +
-  tm_fill(col = "TractGroup", alpha = 0.2) +
+  tm_fill(col = "TractGroup", alpha = 0.5) +
   tm_borders(col = "black", lwd = 0.1) +
   tm_layout(legend.outside = TRUE) +
   q2
@@ -190,8 +191,8 @@ What do these look like:
 
 ```{r}
 q3 <- tm_shape(ollies) +
-  tm_dots(col = "black", size = 0.1) +
-  tm_text("brands", size = 0.5) + 
+  tm_dots(col = "black", size = 0.1, alpha = 0.3) +
+  tm_text("brands", size = 0.8) + 
   tm_shape(ollies_catch) +
   tm_polygons(col = "red", alpha = 0.3)
 q3
@@ -325,5 +326,13 @@ So for each geodemographic group, we have prepared a summary of the overall weal
 
 ## Part 4) Optional Extra: Drive-Time Catchments 
 
+
+```{r}
+tm_shape(gd_pop) +
+  tm_fill(col = "value", alpha = 0.3, style = "jenks") +
+  tm_borders(col = "black", lwd = 0.25) +
+  tm_layout(legend.outside = TRUE) +
+  q3
+```
 
 
