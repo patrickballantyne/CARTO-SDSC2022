@@ -29,7 +29,7 @@ library(tmap)
 library(prettydoc)
 library(rmdformats)
 library(ggbeeswarm)
-tmap_mode("plot")
+tmap_mode("view")
 ```
 ---
 
@@ -44,6 +44,8 @@ Today we will be working with three main types of data:
 ---
 
 ## Store data - SafeGraph places
+
+We have prepared a small subset of the SafeGraph places database, specifically those located in the Atlanta Metropolitan Area, and those affiliated to larger brands, i.e. non-independent stores. Let's loads these in:
 
 ```{r message = FALSE }
 places <- st_read("Data/places.gpkg", quiet = TRUE)
@@ -64,15 +66,15 @@ grocery <- places %>%
 
 ```{r}
 tm_shape(grocery) +
-  tm_dots(col = "brands", size = 0.05) +
+  tm_dots(col = "brands", title = "Brand", size = 0.05) +
   tm_layout(legend.outside = TRUE)
 ```
-
-Lots of 'Independent' grocery stores, but also large numbers of big brands such as LIDL, Circle K and Whole Foods. 
 
 ---
 
 ## Geodemographic classification
+
+We have prepared a short subset of the US Geodemographic Classification also for Atlanta Metropolitan area. Let's load it in:
 
 ```{r}
 geodemo <- st_read("Data/geodemographic.gpkg", quiet = TRUE)
@@ -88,7 +90,7 @@ The 'TractGroup' column is the one we are interested in; every census tract in t
 
 ```{r warning = FALSE}
 tm_shape(geodemo) +
-  tm_fill(col = "TractGroup", alpha = 0.5) +
+  tm_fill(col = "TractGroup", alpha = 0.5, palette = "Pastel1") +
   tm_borders(col = "black", lwd = 0.25) +
   tm_layout(legend.outside = TRUE)
 ```
@@ -97,12 +99,16 @@ tm_shape(geodemo) +
 
 ## Population - US Census Bureau (via tidycensus)
 
-We are going to be using a fantastic package called ['tidycensus'](https://walker-data.com/tidycensus/) which is used to directly query data from the US Census Bureau API.
+Finally, we are also going to be integrating some population data (also at Tract level). To do this we are going to be using a fantastic package called ['tidycensus'](https://walker-data.com/tidycensus/) which is used to directly query data from the US Census Bureau API.
+
+You'll need a US Census Bureau API key if you haven't got one already, which you can get [HERE](https://api.census.gov/data/key_signup.html). 
 
 ```{r warning = FALSE}
 ## Remember to get an API key for the US Census Bureau
 census_api_key("e0f3cdfa0e1e13ab3a4d9dc32c67984d0be5523b")
 ```
+
+So, tidycensus allows us to query data from the US Census Bureau, in this case we are going to use data from the 2010 census to obtain population counts at tract level: 
 
 ```{r message= FALSE}
 pop <- get_decennial(geography = "Tract", variables = "P001001",
@@ -129,7 +135,7 @@ Now that we have the population data converted to a spatial form, let's take a l
 
 ```{r}
 tm_shape(gd_pop) +
-  tm_fill(col = "value", alpha = 0.5, style = "jenks") +
+  tm_fill(col = "value", title = "TotalPopulation", alpha = 0.5, style = "jenks") +
   tm_borders(col = "black", lwd = 0.25) +
   tm_layout(legend.outside = TRUE)
 ```
@@ -163,21 +169,20 @@ Let's visualise these:
 
 ```{r}
 q1 <- tm_shape(wholefoods) +
-  tm_dots(col = "black", size = 0.1) +
-  tm_text("brands", size = 0.5) +
+  tm_dots(col = "black", size = 0.1, alpha = 0.5) +
+  tm_text("brands", size = 1, just = "top") +
   tm_shape(ollies) +
-  tm_dots(col = "black", size = 0.1) +
-  tm_text("brands", size = 0.5)
+  tm_dots(col = "black", size = 0.1, alpha = 0.5) +
+  tm_text("brands", size = 1, just = "top")
 
 q1
 ```
-
 
 And what does this look like with the geodemographic classification underneath:
 
 ```{r warning = FALSE}
 tm_shape(gd_pop) +
-  tm_fill(col = "TractGroup", alpha = 0.5) +
+  tm_fill(col = "TractGroup", alpha = 0.75, palette = "Pastel1") +
   tm_borders(col = "black", lwd = 0.1) +
   tm_layout(legend.outside = TRUE) +
   q1
@@ -186,19 +191,20 @@ tm_shape(gd_pop) +
 
 So there are some pretty obvious locational differences between them. But how can we assess this - **catchments**. Store catchments help us to better understand the characteristics of consumers that are likely to use these stores.
 
-Let's build a 1km buffer for whole foods stores:
+Let's build a 2.5km buffer for whole foods stores:
 
 ```{r}
-wholefoods_catch <- st_buffer(wholefoods, 1000)
+wholefoods_catch <- st_buffer(wholefoods, 2500)
+ollies_catch <- st_buffer(ollies, 2500)
 ```
 
 What do these look like:
 
 ```{r}
-q2 <- tm_shape(wholefoods) +
-  tm_dots(col = "black", size = 0.1) +
-  tm_text("brands", size = 0.5) + 
+q2 <- q1 +
   tm_shape(wholefoods_catch) +
+  tm_polygons(col = "red", alpha = 0.3) +
+  tm_shape(ollies_catch) +
   tm_polygons(col = "red", alpha = 0.3)
 q2
 ```
@@ -207,39 +213,11 @@ And with the geodemographic:
 
 ```{r warning = FALSE}
 tm_shape(gd_pop) +
-  tm_fill(col = "TractGroup", alpha = 0.5) +
+  tm_fill(col = "TractGroup", alpha = 0.5, palette = "Pastel1") +
   tm_borders(col = "black", lwd = 0.1) +
   tm_layout(legend.outside = TRUE) +
   q2
 ```
-
-Let's repeat the same for Ollie's Bargain Outlet
-
-```{r}
-ollies_catch <- st_buffer(ollies, 1000)
-```
-
-What do these look like:
-
-```{r}
-q3 <- tm_shape(ollies) +
-  tm_dots(col = "black", size = 0.1, alpha = 0.3) +
-  tm_text("brands", size = 0.8) + 
-  tm_shape(ollies_catch) +
-  tm_polygons(col = "red", alpha = 0.3)
-q3
-```
-
-And with the geodemographic: 
-
-```{r}
-tm_shape(gd_pop) +
-  tm_fill(col = "TractGroup", alpha = 0.5) +
-  tm_borders(col = "black", lwd = 0.1) +
-  tm_layout(legend.outside = T) +
-  q3
-```
-
 
 So there are some obvious differences between the general location and geodemographic profile of Whole Foods vs Ollie's Bargain Outlet. So, how do we quantify this: **catchment profiling**. 
 
@@ -309,6 +287,9 @@ Let's visualise the breakdown of different groups between stores:
 wholefood_profile_final %>%
   complete(TractGroup, location_name, placekey, fill=list(gd_prop=0)) %>%
   ggplot(aes(fill = TractGroup, x = placekey, y = gd_prop)) +
+  xlab("Store") +
+  ylab("Catchment Proportion (%)") +
+  scale_fill_brewer(palette = "Pastel1") +
   geom_bar(stat = "identity") +
   theme(axis.text.x = element_blank())
 ```
@@ -341,15 +322,18 @@ And visualise the output:
 ollies_profile_final %>%
   complete(TractGroup, location_name, placekey, fill=list(gd_prop=0)) %>%
   ggplot(aes(fill = TractGroup, x = placekey, y = gd_prop)) +
+  xlab("Store") +
+  ylab("Catchment Proportion (%)") +
+  scale_fill_brewer(palette = "Pastel1") +
   geom_bar(stat = "identity") +
   theme(axis.text.x = element_blank())
 ```
 
-## Catchment spending power
+## Catchment Income Profile
 
 Whilst it is useful to visualise differences in geodemographic profiles of store catchments, it is perhaps more useful to provide an empirical measure that quantifies these differences.
 
-Based on the methodology applied in Singleton et al. (2016), we calculate a **Insert snazzy name** score for each store catchment, which is based on differences in income between the different groups.
+Based on the methodology applied in Singleton et al. (2016), we calculate a **Catchment Income Profile** score for each store catchment, which is based on differences in income between the different groups, whilst still accounting for geodemographic differences between them.
 
 Let's read in a file containing some information about the overall wealth of these different groups. For each geodemographic group, we have prepared a summary of the overall wealth taken straight from the pen portrait in [Spielman and Singleton (2015)](https://www.tandfonline.com/doi/full/10.1080/00045608.2015.1052335). Using these descriptions, we have assigned an arbitrary z-score (or weight) which can be used to weight these population proportions, and derive a composite index from them.
 
@@ -369,7 +353,6 @@ wholefood_profile_final <- merge(wholefood_profile_final, zscores[, c("TractGrou
 
 Weight the geodemographic population proportions with the z scores:
 
-
 ```{r}
 wholefood_profile_final <- wholefood_profile_final %>%
   arrange(location_name, placekey) %>%
@@ -381,8 +364,8 @@ Take a look:
 ```{r}
 head(wholefood_profile_final)
 ```
-Finally, we want to calculate an aggregate score, which uses these weighted catchment proportions to derive a score that represents the *insert snazzy name* of the stores catchment. 
 
+Finally, we want to calculate an aggregate score, which uses these weighted catchment proportions to derive a score that represents the *Catchment Income Profile* of the store catchments. 
 
 ```{r}
 wholefood_out <- wholefood_profile_final %>%
@@ -404,6 +387,7 @@ ollies_out <- ollies_profile_final %>%
   summarise(exp = sum(w_gd_prop))
 ollies_out
 ```
+
 Ok, let's compare the distribution of our score across the two types of stores:
 
 ```{r}
@@ -412,10 +396,23 @@ stat %>%
   group_by(location_name) %>%
   summarise(medianExp = median(exp))
 ```
-So it's clear that in Atlanta, Whole Foods Stores are typically located in neighbourhoods with a greater exposure to higher **insert snazzy title**, whereas Ollie's Bargain Outlet is typically found in neighbourhoods with lower implications.
 
+So it's clear that in Atlanta, Whole Foods Stores are typically located in neighbourhoods with a greater exposure to higher **Catchment Income Profiles**, whereas Ollie's Bargain Outlet is typically found in neighbourhoods with lower values.
 
 ## Implications
 
 So what does all of this mean? What can such insights be used for? 
+
+1) Use of Geodemographics to understand income patterns of stores, but also lots of other aspects. Say you're interested in wealthy, young, female consumers, you could re-run such analysis to account for these geodemographic differences, and quantify the exposure of your catchment.
+
+2) Underperformance? Is your store exposure much lower than other stores in the portfolio?
+
+3) Location analysis - using Geodemographics to support decision-making about new store locations. 
+
+## Want to learn more?
+
+Check out the free R tutorial on Retail applications in R; drive-time catchments, gravity models, profiling, available [HERE](https://data.cdrc.ac.uk/dataset/advanced-gis-methods-training-retail-centres-and-catchment-areas).
+
+A new version of the US Geodemographic classification is under construction, keep an eye on Prof. Alex Singleton's [GitHub repo](https://github.com/alexsingleton) for updates.
+
 
