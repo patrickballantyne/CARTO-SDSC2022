@@ -19,10 +19,10 @@ output:
 Libraries are an essential part of the R workflow, giving you all the necessary tools to complete the analysis. Different people use different libraries for certain aspects of analysis, but these are my favourites:
 
 ```{r message = FALSE, warning = FALSE}
-library(tidyverse)
-library(sf)
-library(tidycensus)
-library(tmap)
+library(tidyverse) # Data wrangling
+library(sf) # (Spatial) data wrangling and GIS
+library(tidycensus) # Census API
+library(tmap) # Interactive mapping 
 ```
 
 ```{r include=FALSE}
@@ -70,6 +70,8 @@ tm_shape(grocery) +
   tm_layout(legend.outside = TRUE)
 ```
 
+There are lots of other categories of stores, non-branded stores and data for other areas of the U.S., Canada, U.K. and beyond - SafeGraph places really is a fantastic resource!! 
+
 ---
 
 ## Geodemographic classification
@@ -88,12 +90,18 @@ glimpse(geodemo)
 
 The 'TractGroup' column is the one we are interested in; every census tract in the US is assigned to one of 10 groups, based on the geodemographic characteristics of the area in question. 
 
+Let's look at the distribution of the 10 groups within Atlanta:
+
 ```{r warning = FALSE}
 tm_shape(geodemo) +
   tm_fill(col = "TractGroup", alpha = 0.5, palette = "Pastel1") +
   tm_borders(col = "black", lwd = 0.25) +
   tm_layout(legend.outside = TRUE)
 ```
+
+So there are notable differences in the geographic distribution of the groups across Atlanta.
+
+Reminder: if you want to check out what the geodemographics of your local neighbourhood area, you can do that [here](https://tinyurl.com/us-geo ).
 
 ---
 
@@ -148,11 +156,11 @@ Ok, now that we are familiar with the three main datasets, we can actually get t
 
 **Whole Foods Market:**
 
-The stores offer a wide variety of organic and natural foods, as well as a large selection of prepared foods... also has a number of unique features, such as a cheese shop, a wine bar and a coffee bar. Shopping at this luxury grocery store might cost shoppers more than they are willing to spend. According to a survey conducted by Business Insider, Whole Foods is 15% more expensive than general grocery stores such as Walmart and Kroger (source: [gobankingrates.com](https://www.gobankingrates.com/money/wealth/most-luxurious-grocery-stores-in-the-us/)).
+*"The stores offer a wide variety of organic and natural foods, as well as a large selection of prepared foods... also has a number of unique features, such as a cheese shop, a wine bar and a coffee bar. Shopping at this luxury grocery store might cost shoppers more than they are willing to spend. According to a survey conducted by Business Insider, Whole Foods is 15% more expensive than general grocery stores such as Walmart and Kroger"* (source: [gobankingrates.com](https://www.gobankingrates.com/money/wealth/most-luxurious-grocery-stores-in-the-us/)).
 
 **Ollie's Bargain Outlet:**
 
-Ollie's Bargain Outlet is an American chain of discount closeout retailers...  Its selection of merchandise comprises a variety of discounted household goods, apparel, pet supplies, kitchen pantry staples, and seasonal products (holiday, gardening, patio, pool and beach supplies); a majority of these items are unsold or overstocked merchandise that is purchased in bulk from other retailers and sold at discounted prices (source: [wiki](https://en.wikipedia.org/wiki/Ollie%27s_Bargain_Outlet)).
+*"Ollie's Bargain Outlet is an American chain of discount closeout retailers...  Its selection of merchandise comprises a variety of discounted household goods, apparel, pet supplies, kitchen pantry staples, and seasonal products (holiday, gardening, patio, pool and beach supplies); a majority of these items are unsold or overstocked merchandise that is purchased in bulk from other retailers and sold at discounted prices"* (source: [wiki](https://en.wikipedia.org/wiki/Ollie%27s_Bargain_Outlet)).
 
 Let's get the relevant places:
 
@@ -169,10 +177,10 @@ Let's visualise these:
 
 ```{r}
 q1 <- tm_shape(wholefoods) +
-  tm_dots(col = "black", size = 0.1, alpha = 0.5) +
+  tm_dots(col = "blue", size = 0.1, alpha = 0.5) +
   tm_text("brands", size = 1, just = "top") +
   tm_shape(ollies) +
-  tm_dots(col = "black", size = 0.1, alpha = 0.5) +
+  tm_dots(col = "orange", size = 0.1, alpha = 0.5) +
   tm_text("brands", size = 1, just = "top")
 
 q1
@@ -201,11 +209,12 @@ ollies_catch <- st_buffer(ollies, 2500)
 What do these look like:
 
 ```{r}
-q2 <- q1 +
+q2 <-
   tm_shape(wholefoods_catch) +
   tm_polygons(col = "red", alpha = 0.3) +
   tm_shape(ollies_catch) +
-  tm_polygons(col = "red", alpha = 0.3)
+  tm_polygons(col = "red", alpha = 0.3) + 
+  q1
 q2
 ```
 
@@ -220,6 +229,8 @@ tm_shape(gd_pop) +
 ```
 
 So there are some obvious differences between the general location and geodemographic profile of Whole Foods vs Ollie's Bargain Outlet. So, how do we quantify this: **catchment profiling**. 
+
+---
 
 # Catchment Profiling
 
@@ -240,7 +251,6 @@ Let's take a look at the output:
 ```{r}
 head(wholefoods_gd)
 ```
-
 What we want to do for each store is calculate the total catchment population in the catchment, and the total population disaggregated by geodemographic group. This is easy with tidyverse.
 
 First, get the total population in each catchment:
@@ -329,11 +339,13 @@ ollies_profile_final %>%
   theme(axis.text.x = element_blank())
 ```
 
+---
+
 ## Catchment Income Profile
 
 Whilst it is useful to visualise differences in geodemographic profiles of store catchments, it is perhaps more useful to provide an empirical measure that quantifies these differences.
 
-Based on the methodology applied in Singleton et al. (2016), we calculate a **Catchment Income Profile** score for each store catchment, which is based on differences in income between the different groups, whilst still accounting for geodemographic differences between them.
+Based on the methodology applied in [Singleton et al. (2016)](https://www.sciencedirect.com/science/article/pii/S0016718515301500), we calculate a **Catchment Income Profile** score for each store catchment, which is based on differences in income between the different groups, whilst still accounting for geodemographic differences between them.
 
 Let's read in a file containing some information about the overall wealth of these different groups. For each geodemographic group, we have prepared a summary of the overall wealth taken straight from the pen portrait in [Spielman and Singleton (2015)](https://www.tandfonline.com/doi/full/10.1080/00045608.2015.1052335). Using these descriptions, we have assigned an arbitrary z-score (or weight) which can be used to weight these population proportions, and derive a composite index from them.
 
@@ -342,7 +354,7 @@ zscores <- read.csv("Data/z-scores.csv")
 ```
 
 ```{r}
-zscores
+glimpse(zscores)
 ```
 
 Merge the z-scores onto the profiles:
@@ -394,10 +406,12 @@ Ok, let's compare the distribution of our score across the two types of stores:
 stat <- rbind(ollies_out, wholefood_out)
 stat %>%
   group_by(location_name) %>%
-  summarise(medianExp = median(exp))
+  summarise(incomeProfile = median(exp))
 ```
 
 So it's clear that in Atlanta, Whole Foods Stores are typically located in neighbourhoods with a greater exposure to higher **Catchment Income Profiles**, whereas Ollie's Bargain Outlet is typically found in neighbourhoods with lower values.
+
+---
 
 ## Implications
 
@@ -409,7 +423,76 @@ So what does all of this mean? What can such insights be used for?
 
 3) Location analysis - using Geodemographics to support decision-making about new store locations. 
 
-## Want to learn more?
+---
+
+## Plenary - lapply and scaling analyses
+
+What we have done in this workbook is calculate for two different brands their Income Profile and compared them directly, walking you through the code line by line as to how this is achieved. However, in practice i'm sure many of you are less interested in the actual code to do this, and more about the results and insights.
+
+Thus, we can use a function to iterate these steps across multiple different brands, and generate faster comparisons of Income Profiles.
+
+First, we need to build the function:
+
+```{r}
+getProfile <- function(brand) {
+  
+  ## Data
+  x <- places %>%
+  filter(brands == brand)
+  x_catch <- st_buffer(x, 2500)
+  
+  ## Spatial Join
+  x_gd <- st_join(x_catch, gd_pop)
+  
+  ## Calculate populations
+  x_profile <- x_gd %>%
+    as.data.frame() %>%
+    select(-c(geom)) %>%
+    group_by(location_name, placekey) %>%
+    summarise(catch_pop = sum(value))
+  x_gd_profile <- x_gd %>%
+    as.data.frame() %>%
+    select(-c(geom)) %>%
+    group_by(location_name, placekey, TractGroup) %>%
+    summarise(catch_gd_pop = sum(value))
+  x_profile <- merge(x_profile, x_gd_profile, by = c("location_name", "placekey"), all.x = TRUE)
+  x_profile_final <- x_profile %>%
+  mutate(gd_prop = (catch_gd_pop / catch_pop) * 100) %>%
+  select(location_name, placekey, TractGroup, gd_prop)
+  
+  ## Calculate Income Profile
+  x_profile_final <- merge(x_profile_final, zscores[, c("TractGroup", "z.score")], all.x = TRUE)
+  x_profile_final <- x_profile_final %>% 
+    arrange(location_name, placekey) %>%
+    mutate(w_gd_prop = gd_prop * z.score)
+  x_out <- x_profile_final %>%
+    select(location_name, placekey, w_gd_prop) %>%
+    group_by(location_name, placekey) %>%
+    summarise(exp = sum(w_gd_prop))
+  x_income_prof <- x_out %>%
+    group_by(location_name) %>%
+    summarise(incomeProfile = mean(exp))
+  return(x_income_prof)
+
+}
+```
+
+Let's identify a few different brands to extract profiles for
+
+```{r}
+brand_ls <- c("Banana Republic", "Michael Kors", "T.J. Maxx", "JCPenney")
+```
+
+Run the profiles together, using the lapply() function:
+
+```{r echo=FALSE}
+profiles <- lapply(brand_ls, getProfile)
+do.call(rbind, profiles)
+```
+
+---
+
+## Enjoyed today's workshop? Want to learn more?
 
 Check out the free R tutorial on Retail applications in R; drive-time catchments, gravity models, profiling, available [HERE](https://data.cdrc.ac.uk/dataset/advanced-gis-methods-training-retail-centres-and-catchment-areas).
 
