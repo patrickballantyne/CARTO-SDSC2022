@@ -23,13 +23,13 @@ library(tidyverse) # Data wrangling
 library(sf) # (Spatial) data wrangling and GIS
 library(tidycensus) # Census API
 library(tmap) # Interactive mapping 
+tmap_mode("view")
 ```
 
-```{r include=FALSE}
+```{r eval=FALSE, include=FALSE}
 library(prettydoc)
 library(rmdformats)
 library(ggbeeswarm)
-tmap_mode("view")
 ```
 ---
 
@@ -60,14 +60,12 @@ glimpse(places)
 Let's take a look at the distribution of grocery stores:
 
 ```{r}
-grocery <- places %>%
-  filter(top_category == "Grocery Stores")
-```
-
-```{r}
-tm_shape(grocery) +
-  tm_dots(col = "brands", title = "Brand", size = 0.05) +
+places %>%
+  filter(top_category == "Grocery Stores") %>%
+  tm_shape() +
+    tm_dots(col = "brands", title = "Brand", size = 0.05) +
   tm_layout(legend.outside = TRUE)
+  
 ```
 
 There are lots of other categories of stores, non-branded stores and data for other areas of the U.S., Canada, U.K. and beyond - SafeGraph places really is a fantastic resource!! 
@@ -101,7 +99,7 @@ tm_shape(geodemo) +
 
 So there are notable differences in the geographic distribution of the groups across Atlanta.
 
-Reminder: if you want to check out what the geodemographics of your local neighbourhood area, you can do that [here](https://tinyurl.com/us-geo ).
+Reminder: if you want to check out what the geodemographics of your local neighbourhood area, you can do that [here](https://tinyurl.com/us-geo).
 
 ---
 
@@ -425,7 +423,7 @@ So what does all of this mean? What can such insights be used for?
 
 ---
 
-## Plenary - lapply and scaling analyses
+## Extra fun - lapply and scaling analyses
 
 What we have done in this workbook is calculate for two different brands their Income Profile and compared them directly, walking you through the code line by line as to how this is achieved. However, in practice i'm sure many of you are less interested in the actual code to do this, and more about the results and insights.
 
